@@ -12,14 +12,32 @@ set -o errexit
 set -o nounset
 set -o pipefail
 set -o xtrace
-mv /etc/resolv.conf /etc/resolv.conf.orig | true
-echo "nameserver 9.9.9.9" | tee /etc/resolv.conf
-{{if eq .Dist "rhel"}}
+
+{{if .NameServers}}mv /etc/resolv.conf /etc/resolv.conf.orig | true {{end}}
+
+{{- range .NameServers}}
+echo "nameserver {{.}}" | tee /etc/resolv.conf
+{{- end}}
+
+{{- range $repo := .YumRepos}}
+cat <<EOF > /etc/yum.repos.d/{{$repo.Name}}
+{{$repo.Content}}
+EOF
+{{- end}}
+
+{{- if eq .Dist "rhel"}}
 subscription-manager register --force --auto-attach --username={{ .RHNUser }} --password={{ .RHNPassword }}
-{{end}}
+{{- end}}
 yum update -y
-# yum install http://public.dhe.ibm.com/systems/virtualization/powervc/rhel8_cloud_init/cloud-init-19.1-8.ibm.el8.noarch.rpm -y
-yum install http://people.redhat.com/~eterrell/cloud-init/cloud-init-19.4-11.el8_3.1.noarch.rpm -y
+
+{{- range .RPMInstall}}
+rpm -i {{.}}
+{{- end}}
+
+{{- range .YumInstall}}
+yum install -y {{.}}
+{{- end}}
+
 ln -s /usr/lib/systemd/system/cloud-init-local.service /etc/systemd/system/multi-user.target.wants/cloud-init-local.service
 ln -s /usr/lib/systemd/system/cloud-init.service /etc/systemd/system/multi-user.target.wants/cloud-init.service
 ln -s /usr/lib/systemd/system/cloud-config.service /etc/systemd/system/multi-user.target.wants/cloud-config.service
@@ -60,7 +78,9 @@ echo {{ .RootPasswd }} | passwd root --stdin
 subscription-manager unregister
 subscription-manager clean
 {{end}}
-mv /etc/resolv.conf.orig /etc/resolv.conf | true
+
+{{if .NameServers}}mv /etc/resolv.conf.orig /etc/resolv.conf | true{{end}}
+
 touch /.autorelabel`
 
 var cloudConfig = `# The top level settings are used as module
@@ -159,17 +179,10 @@ bootcmd:
 
 var dsIdentify = `policy: search,found=all,maybe=all,notfound=disabled`
 
-type Setup struct {
-	Dist, RHNUser, RHNPassword, RootPasswd string
-}
-
-func Render(dist, rhnuser, rhnpasswd, rootpasswd string) (string, error) {
-	s := Setup{
-		dist, rhnuser, rhnpasswd, rootpasswd,
-	}
+func Render(opt PrepareOptions) (string, error) {
 	var wr bytes.Buffer
 	t := template.Must(template.New("setup").Parse(setup))
-	err := t.Execute(&wr, s)
+	err := t.Execute(&wr, opt)
 	if err != nil {
 		return "", fmt.Errorf("error while rendoring the script template: %v", err)
 	}

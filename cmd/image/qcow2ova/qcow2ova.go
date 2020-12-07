@@ -10,13 +10,15 @@ import (
 	"syscall"
 
 	"github.com/manifoldco/promptui"
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
+	"k8s.io/klog/v2"
+
 	"github.com/ppc64le-cloud/pvsadm/cmd/image/qcow2ova/ova"
 	"github.com/ppc64le-cloud/pvsadm/cmd/image/qcow2ova/prep"
 	"github.com/ppc64le-cloud/pvsadm/cmd/image/qcow2ova/validate"
 	"github.com/ppc64le-cloud/pvsadm/pkg"
 	"github.com/ppc64le-cloud/pvsadm/pkg/utils"
-	"github.com/spf13/cobra"
-	"k8s.io/klog/v2"
 )
 
 var Cmd = &cobra.Command{
@@ -40,6 +42,13 @@ Examples:
 `,
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		opt := pkg.ImageCMDOptions
+
+		// print the configuration and exit if --generate-config flag mentioned
+		if opt.GenerateConfig {
+			fmt.Println(prep.DefaultAdditionalConfig)
+			os.Exit(0)
+		}
+
 		if !utils.Contains([]string{"rhel", "centos", "coreos"}, strings.ToLower(opt.ImageDist)) {
 			klog.Errorln("--image-dist is a mandatory flag and one of these [rhel, centos, coreos]")
 			os.Exit(1)
@@ -96,6 +105,21 @@ Examples:
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		opt := pkg.ImageCMDOptions
+
+		// Code for reading the additional configuration passed via --config option
+		configStr := prep.DefaultAdditionalConfig
+		if opt.AdditionalConfig != "" {
+			content, err := ioutil.ReadFile(opt.AdditionalConfig)
+			if err != nil {
+				return fmt.Errorf("failed to read config-file: %v", err)
+			}
+			configStr = string(content)
+		}
+		additionalConfig := prep.AdditionalSetup{}
+		err := yaml.Unmarshal([]byte(configStr), &additionalConfig)
+		if err != nil {
+			return fmt.Errorf("error: %v", err)
+		}
 
 		tmpDir, err := ioutil.TempDir(opt.TempDir, "qcow2ova")
 		if err != nil {
@@ -174,7 +198,19 @@ Examples:
 		klog.Infof("Resize completed")
 
 		klog.Infof("Preparing the image")
-		err = prep.Prepare4capture(mnt, rawImg, opt.ImageDist, opt.RHNUser, opt.RHNPassword, opt.OSPassword)
+		prepOpt := prep.PrepareOptions{
+			Mount:  mnt,
+			Volume: rawImg,
+			Setup: prep.Setup{
+				Dist:        opt.ImageDist,
+				RHNUser:     opt.RHNUser,
+				RHNPassword: opt.RHNPassword,
+				RootPasswd:  opt.OSPassword,
+			},
+			AdditionalSetup: additionalConfig,
+		}
+
+		err = prep.Prepare4capture(prepOpt)
 		if err != nil {
 			return fmt.Errorf("failed while preparing the image for %s distro, err: %v", opt.ImageDist, err)
 		}
@@ -210,6 +246,9 @@ func init() {
 	Cmd.Flags().StringVar(&pkg.ImageCMDOptions.OSPassword, "os-password", "", "Root user password, will auto-generate the 12 bits password(applicable only for redhat and cento distro)")
 	Cmd.Flags().StringVarP(&pkg.ImageCMDOptions.TempDir, "temp-dir", "t", os.TempDir(), "Scratch space to use for OVA generation")
 	Cmd.Flags().StringSliceVar(&pkg.ImageCMDOptions.PreflightSkip, "skip-preflight-checks", []string{}, "Skip the preflight checks(e.g: diskspace, platform, tools) - dev-only option")
+	Cmd.Flags().StringVar(&pkg.ImageCMDOptions.AdditionalConfig, "config-file", "", "Additional configuration for image preparation, run --generate-config to dump the default config")
+	Cmd.Flags().BoolVar(&pkg.ImageCMDOptions.GenerateConfig, "generate-config", false, "Dumps the default configuration for the image preparation")
+
 	_ = Cmd.Flags().MarkHidden("skip-preflight-checks")
 	_ = Cmd.MarkFlagRequired("image-name")
 	_ = Cmd.MarkFlagRequired("image-url")

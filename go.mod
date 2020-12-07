@@ -17,5 +17,6 @@ require (
 	github.com/ppc64le-cloud/powervs-utils v0.0.0-20201204143607-84386ece4f49
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/pflag v1.0.3
+	gopkg.in/yaml.v2 v2.3.0
 	k8s.io/klog/v2 v2.3.0
 )

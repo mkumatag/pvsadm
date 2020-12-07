@@ -15,13 +15,27 @@ var (
 	hostPartitions = []string{"/proc", "/dev", "/sys", "/var/run/", "/etc/machine-id"}
 )
 
+type PrepareOptions struct {
+	// Temp mount directory used for the image preparation
+	Mount string
+
+	// OS distribution volume
+	Volume string
+
+	// Basic setup configuration
+	Setup
+
+	// Additional configuration for the image preparation like nameservers, yum repos etc.
+	AdditionalSetup
+}
+
 //prepare is a function prepares the CentOS or RHEL image for capturing, this includes
 // - Installs the cloud-init
 // - Install and configure multipath for rootfs
 // - Install all the required modules for PowerVM
 // - Sets the root password
-func prepare(mnt, volume, dist, rhnuser, rhnpasswd, rootpasswd string) error {
-	lo, err := setupLoop(volume)
+func prepare(opt PrepareOptions) error {
+	lo, err := setupLoop(opt.Volume)
 	if err != nil {
 		return err
 	}
@@ -35,11 +49,11 @@ func prepare(mnt, volume, dist, rhnuser, rhnpasswd, rootpasswd string) error {
 	partition := "2"
 	partDev := lo + "p" + partition
 
-	err = mount("nouuid", partDev, mnt)
+	err = mount("nouuid", partDev, opt.Mount)
 	if err != nil {
 		return err
 	}
-	defer Umount(mnt)
+	defer Umount(opt.Mount)
 
 	err = growpart(lo, partition)
 	if err != nil {
@@ -68,33 +82,33 @@ func prepare(mnt, volume, dist, rhnuser, rhnpasswd, rootpasswd string) error {
 
 	// mount the host partitions
 	for _, p := range hostPartitions {
-		err = mount("bind", p, filepath.Join(mnt, p))
+		err = mount("bind", p, filepath.Join(opt.Mount, p))
 		if err != nil {
 			return err
 		}
 	}
-	defer UmountHostPartitions(mnt)
+	defer UmountHostPartitions(opt.Mount)
 
-	setupStr, err := Render(dist, rhnuser, rhnpasswd, rootpasswd)
+	setupStr, err := Render(opt)
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(filepath.Join(mnt, "setup.sh"), []byte(setupStr), 744)
-	if err != nil {
-		return err
-	}
-
-	err = ioutil.WriteFile(filepath.Join(mnt, "/etc/cloud/cloud.cfg"), []byte(cloudConfig), 644)
+	err = ioutil.WriteFile(filepath.Join(opt.Mount, "setup.sh"), []byte(setupStr), 744)
 	if err != nil {
 		return err
 	}
 
-	err = ioutil.WriteFile(filepath.Join(mnt, "/etc/cloud/ds-identify.conf"), []byte(dsIdentify), 644)
+	err = ioutil.WriteFile(filepath.Join(opt.Mount, "/etc/cloud/cloud.cfg"), []byte(cloudConfig), 644)
 	if err != nil {
 		return err
 	}
 
-	err = Chroot(mnt)
+	err = ioutil.WriteFile(filepath.Join(opt.Mount, "/etc/cloud/ds-identify.conf"), []byte(dsIdentify), 644)
+	if err != nil {
+		return err
+	}
+
+	err = Chroot(opt.Mount)
 	if err != nil {
 		return err
 	}
@@ -119,15 +133,10 @@ func UmountHostPartitions(mnt string) {
 	}
 }
 
-func Prepare4capture(mnt, volume, dist, rhnuser, rhnpasswd, rootpasswd string) error {
-	//cwd, err := os.Getwd()
-	//if err != nil {
-	//	return err
-	//}
-	//defer os.Chdir(cwd)
-	switch dist := strings.ToLower(dist); dist {
+func Prepare4capture(opt PrepareOptions) error {
+	switch dist := strings.ToLower(opt.Dist); dist {
 	case "rhel", "centos":
-		return prepare(mnt, volume, dist, rhnuser, rhnpasswd, rootpasswd)
+		return prepare(opt)
 	case "coreos":
 		klog.Infof("No image preparation required for the coreos...")
 		return nil
