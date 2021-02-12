@@ -215,7 +215,7 @@ Examples:
 		klog.Infof("Resize completed")
 
 		klog.Infof("Preparing the image")
-		err = prep.Prepare4capture(mnt, rawImg, opt.ImageDist, opt.RHNUser, opt.RHNPassword, opt.OSPassword)
+		err = prep.Prepare4capture(mnt, rawImg, opt.ImageDist, opt.Capi, opt.RHNUser, opt.RHNPassword, opt.OSPassword)
 		if err != nil {
 			return fmt.Errorf("failed while preparing the image for %s distro, err: %v", opt.ImageDist, err)
 		}
@@ -245,6 +245,9 @@ func init() {
 	Cmd.Flags().StringVar(&pkg.ImageCMDOptions.ImageName, "image-name", "", "Name of the resultant OVA image")
 	Cmd.Flags().StringVar(&pkg.ImageCMDOptions.ImageURL, "image-url", "", "URL or absolute local file path to the <QCOW2>.gz image")
 	Cmd.Flags().StringVar(&pkg.ImageCMDOptions.ImageDist, "image-dist", "", "Image Distribution(supported: rhel, centos, coreos)")
+	Cmd.Flags().BoolVar(&pkg.ImageCMDOptions.Capi, "capi", false, "Cluster API image")
+	Cmd.Flags().StringVar(&pkg.ImageCMDOptions.CapiConfig, "capi-config", "", "Cluster API image config file")
+	Cmd.Flags().BoolVar(&pkg.ImageCMDOptions.CapiConfigDefault, "capi-config-default", false, "Prints the default cluster API config")
 	Cmd.Flags().Uint64Var(&pkg.ImageCMDOptions.ImageSize, "image-size", 120, "Size (in GB) of the resultant OVA image")
 	Cmd.Flags().StringVar(&pkg.ImageCMDOptions.RHNUser, "rhn-user", "", "RedHat Subscription username. Required when Image distribution is rhel")
 	Cmd.Flags().StringVar(&pkg.ImageCMDOptions.RHNPassword, "rhn-password", "", "RedHat Subscription password. Required when Image distribution is rhel")
@@ -253,6 +256,7 @@ func init() {
 	Cmd.Flags().StringVar(&pkg.ImageCMDOptions.PrepTemplate, "prep-template", "", "Image preparation script template, use --prep-template-default to print the default template(supported distros: rhel and centos)")
 	Cmd.Flags().BoolVar(&pkg.ImageCMDOptions.PrepTemplateDefault, "prep-template-default", false, "Prints the default image preparation script template, use --prep-template to set the custom template script(supported distros: rhel and centos)")
 	Cmd.Flags().StringSliceVar(&pkg.ImageCMDOptions.PreflightSkip, "skip-preflight-checks", []string{}, "Skip the preflight checks(e.g: diskspace, platform, tools) - dev-only option")
+	Cmd.Flags().StringVar(&pkg.ImageCMDOptions.Format, "format", "ova", "Output format, possible values: ova, raw, qcow2. Multiple options can be supplied with \",\"")
 	_ = Cmd.Flags().MarkHidden("skip-preflight-checks")
 	_ = Cmd.MarkFlagRequired("image-name")
 	_ = Cmd.MarkFlagRequired("image-url")

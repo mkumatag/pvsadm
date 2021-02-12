@@ -24,10 +24,15 @@ const QemuCMD = "qemu-img"
 
 // qemuImgConvertQcow2Raw converts qcow2 format to RAW
 func qemuImgConvertQcow2Raw(source, target string) error {
-	args := []string{"convert", "-f", "qcow2", "-O", "raw", source, target}
+	return qemuConvert(source, target, "qcow2", "raw")
+}
+
+// qemuImgConvert converts stype to ttype
+func qemuConvert(source, target, stype, ttype string) error {
+	args := []string{"convert", "-f", stype, "-O", ttype, source, target}
 	exit, out, err := utils.RunCMD(QemuCMD, args...)
 	if exit != 0 {
-		return fmt.Errorf("failed to convert Qcow2(%s) image to RAW(%s) format, exited with: %d, out: %s, err: %s", source, target, exit, out, err)
+		return fmt.Errorf("failed to convert %s(%s) image to %s(%s) format, exited with: %d, out: %s, err: %s", stype, source, ttype, target, exit, out, err)
 	}
 	return nil
 }

@@ -34,7 +34,7 @@ var (
 // - Install and configure multipath for rootfs
 // - Install all the required modules for PowerVM
 // - Sets the root password
-func prepare(mnt, volume, dist, rhnuser, rhnpasswd, rootpasswd string) error {
+func prepare(mnt, volume, dist string, capi bool, rhnuser, rhnpasswd, rootpasswd string) error {
 	lo, err := setupLoop(volume)
 	if err != nil {
 		return err
@@ -88,8 +88,12 @@ func prepare(mnt, volume, dist, rhnuser, rhnpasswd, rootpasswd string) error {
 		}
 	}
 	defer UmountHostPartitions(mnt)
-
-	setupStr, err := Render(dist, rhnuser, rhnpasswd, rootpasswd)
+	var setupStr string
+	if capi {
+		setupStr, err = RenderCapi(dist, rhnuser, rhnpasswd, rootpasswd)
+	} else{
+		setupStr, err = Render(dist, rhnuser, rhnpasswd, rootpasswd)
+	}
 	if err != nil {
 		return err
 	}
@@ -133,7 +137,7 @@ func UmountHostPartitions(mnt string) {
 	}
 }
 
-func Prepare4capture(mnt, volume, dist, rhnuser, rhnpasswd, rootpasswd string) error {
+func Prepare4capture(mnt, volume, dist string, capi bool, rhnuser, rhnpasswd, rootpasswd string) error {
 	//cwd, err := os.Getwd()
 	//if err != nil {
 	//	return err
@@ -141,7 +145,7 @@ func Prepare4capture(mnt, volume, dist, rhnuser, rhnpasswd, rootpasswd string) e
 	//defer os.Chdir(cwd)
 	switch dist := strings.ToLower(dist); dist {
 	case "rhel", "centos":
-		return prepare(mnt, volume, dist, rhnuser, rhnpasswd, rootpasswd)
+		return prepare(mnt, volume, dist, capi, rhnuser, rhnpasswd, rootpasswd)
 	case "coreos":
 		klog.Infof("No image preparation required for the coreos...")
 		return nil

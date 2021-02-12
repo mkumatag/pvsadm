@@ -66,4 +66,9 @@ type imageCMDOptions struct {
 	ServiceCredName string
 	Watch           bool
 	WatchTimeout    time.Duration
+	//Cluster API Image options
+	Capi              bool
+	CapiConfig        string
+	CapiConfigDefault bool
+	Format            string
 }
