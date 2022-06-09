@@ -70,7 +70,56 @@ func (t *Table) Render(rows interface{}, exclude []string) {
 	t.Table.Render()
 }
 
-func getcontent(value reflect.Value) (strVal string) {
+func getTypeString(t reflect.Type) string {
+	if t.PkgPath() == "main" {
+		return t.Name()
+	}
+	return t.String()
+}
+
+func getcontent(v reflect.Value) string {
+	switch v.Kind() {
+	case reflect.Invalid:
+		return "nil"
+	case reflect.Struct:
+		t := v.Type()
+		out := getTypeString(t) + "{"
+		for i := 0; i < v.NumField(); i++ {
+			if i > 0 {
+				out += ", "
+			}
+			fieldValue := v.Field(i)
+			field := t.Field(i)
+			out += fmt.Sprintf("%s: %s", field.Name, getcontent(fieldValue))
+		}
+		out += "}"
+		return out
+	case reflect.Interface, reflect.Ptr:
+		if v.IsZero() {
+			return fmt.Sprintf("(%s)(nil)", getTypeString(v.Type()))
+		}
+		return "&" + getcontent(v.Elem())
+	case reflect.Slice:
+		out := getTypeString(v.Type())
+		if v.IsZero() {
+			out += "(nil)"
+		} else {
+			out += "{"
+			for i := 0; i < v.Len(); i++ {
+				if i > 0 {
+					out += ", "
+				}
+				out += getcontent(v.Index(i))
+			}
+			out += "}"
+		}
+		return out
+	default:
+		return fmt.Sprintf("%#v", v)
+	}
+}
+
+func getcontent2(value reflect.Value) (strVal string) {
 	if value.Kind() == reflect.Invalid {
 		return ""
 	}

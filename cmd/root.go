@@ -17,6 +17,7 @@ package cmd
 import (
 	goflag "flag"
 	"fmt"
+	"github.com/ppc64le-cloud/pvsadm/cmd/dhcpserver"
 	"os"
 	"strings"
 
@@ -69,6 +70,7 @@ func init() {
 	rootCmd.AddCommand(create.Cmd)
 	rootCmd.AddCommand(deletecmd.Cmd)
 	rootCmd.AddCommand(dhcp.Cmd)
+	rootCmd.AddCommand(dhcpserver.Cmd)
 	rootCmd.PersistentFlags().StringVarP(&pkg.Options.APIKey, "api-key", "k", "", "IBMCLOUD API Key(env name: IBMCLOUD_API_KEY)")
 	rootCmd.PersistentFlags().StringVar(&pkg.Options.Environment, "env", client.DefaultEnv, "IBM Cloud Environments, supported are: ["+strings.Join(client.ListEnvironments(), ", ")+"]")
 	rootCmd.PersistentFlags().BoolVar(&pkg.Options.Debug, "debug", false, "Enable PowerVS debug option(ATTENTION: dev only option, may print sensitive data from APIs)")
