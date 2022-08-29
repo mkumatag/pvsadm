@@ -23,6 +23,8 @@ import (
 
 	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev2/controllerv2"
 	"github.com/IBM/ibm-cos-sdk-go/aws"
+	"github.com/IBM/ibm-cos-sdk-go/aws/awserr"
+	"github.com/IBM/ibm-cos-sdk-go/aws/credentials"
 	"github.com/IBM/ibm-cos-sdk-go/aws/credentials/ibmiam"
 	"github.com/IBM/ibm-cos-sdk-go/aws/session"
 	"github.com/IBM/ibm-cos-sdk-go/service/s3"
@@ -44,6 +46,26 @@ type S3Client struct {
 const (
 	AuthEndpoint = "https://iam.cloud.ibm.com/identity/token"
 )
+
+//Func NewS3Client accepts apikey, accesskey, secretkey of the bucket and return the s3 client
+//to perform different s3 operations like upload, delete etc.,
+func NewS3Clientwithkeys(accesskey, secretkey, region string) (s3client *S3Client, err error) {
+
+	s3client = &S3Client{}
+	s3client.SvcEndpoint = fmt.Sprintf("https://s3.%s.cloud-object-storage.appdomain.cloud", region)
+	s3client.StorageClass = fmt.Sprintf("%s-standard", region)
+	conf := aws.NewConfig().
+		WithRegion(s3client.StorageClass).
+		WithEndpoint(s3client.SvcEndpoint).
+		WithCredentials(credentials.NewStaticCredentials(accesskey, secretkey, "")).
+		WithS3ForcePathStyle(true)
+
+	// Create client connection
+	sess := session.Must(session.NewSession()) // Creating a new session
+	s3client.S3Session = s3.New(sess, conf)    // Creating a new client
+	return s3client, nil
+
+}
 
 //Func NewS3Client accepts apikey, instanceid of the IBM COS instance and return the s3 client
 //to perform different s3 operations like upload, delete etc.,
@@ -153,18 +175,24 @@ func (c *S3Client) CheckBucketLocationConstraint(bucketName string, bucketLocati
 	return false, errors.New("bucket location constraint doesn't match")
 }
 
-func (c *S3Client) CheckIfObjectExists(bucketName, objectName string) bool {
+func (c *S3Client) CheckIfObjectExists(bucketName, objectName string) (bool, error) {
 	input := &s3.GetObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(objectName),
 	}
 
 	_, err := c.S3Session.GetObject(input)
+
 	if err != nil {
-		klog.Errorf("ERROR: %v", err)
-		return false
+		if aerr, ok := err.(awserr.Error); ok {
+			if aerr.Code() == s3.ErrCodeNoSuchKey {
+				klog.Infof("Object %s not found in %s bucket", objectName, bucketName)
+				return false, nil
+			}
+		}
+		return false, fmt.Errorf("unknown error occurred, %v", err)
 	}
-	return true
+	return true, nil
 }
 
 //To create a new bucket in the provided instance

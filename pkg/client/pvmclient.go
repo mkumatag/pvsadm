@@ -30,6 +30,7 @@ import (
 	"github.com/ppc64le-cloud/pvsadm/pkg/client/events"
 	"github.com/ppc64le-cloud/pvsadm/pkg/client/image"
 	"github.com/ppc64le-cloud/pvsadm/pkg/client/instance"
+	"github.com/ppc64le-cloud/pvsadm/pkg/client/job"
 	"github.com/ppc64le-cloud/pvsadm/pkg/client/key"
 	"github.com/ppc64le-cloud/pvsadm/pkg/client/network"
 	"github.com/ppc64le-cloud/pvsadm/pkg/client/volume"
@@ -44,6 +45,7 @@ type PVMClient struct {
 	PISession      *ibmpisession.IBMPISession
 	InstanceClient *instance.Client
 	ImgClient      *image.Client
+	JobClient      *job.Client
 	VolumeClient   *volume.Client
 	NetworkClient  *network.Client
 	EventsClient   *events.Client
@@ -88,9 +90,11 @@ func NewPVMClient(c *Client, instanceID, instanceName, ep string) (*PVMClient, e
 		return nil, err
 	}
 
-	authenticator := &core.IamAuthenticator{ApiKey: c.Config.BluemixAPIKey}
+	authenticator := &core.IamAuthenticator{ApiKey: c.Config.BluemixAPIKey, URL: *c.Config.TokenProviderEndpoint}
 
-	os.Setenv("IBMCLOUD_POWER_API_ENDPOINT", fmt.Sprintf("%s.%s", pvmclient.Region, ep))
+	if power_api_endpoint := os.Getenv("IBMCLOUD_POWER_API_ENDPOINT"); power_api_endpoint == "" {
+		os.Setenv("IBMCLOUD_POWER_API_ENDPOINT", fmt.Sprintf("%s.%s", pvmclient.Region, ep))
+	}
 
 	pvmclientOptions := ibmpisession.IBMPIOptions{Authenticator: authenticator, Debug: pkg.Options.Debug, Region: pvmclient.Region, UserAccount: c.User.Account, Zone: pvmclient.Zone}
 	pvmclient.PISession, err = ibmpisession.NewIBMPISession(&pvmclientOptions)
@@ -99,6 +103,7 @@ func NewPVMClient(c *Client, instanceID, instanceName, ep string) (*PVMClient, e
 	}
 
 	pvmclient.ImgClient = image.NewClient(pvmclient.PISession, instanceID)
+	pvmclient.JobClient = job.NewClient(pvmclient.PISession, instanceID)
 	pvmclient.VolumeClient = volume.NewClient(pvmclient.PISession, instanceID)
 	pvmclient.InstanceClient = instance.NewClient(pvmclient.PISession, instanceID)
 	pvmclient.NetworkClient = network.NewClient(pvmclient.PISession, instanceID)
