@@ -5,10 +5,11 @@ go 1.17
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.5
 	github.com/IBM-Cloud/bluemix-go v0.0.0-20220221162715-e08ea9e7c175
-	github.com/IBM-Cloud/power-go-client v1.1.12
+	github.com/IBM-Cloud/power-go-client v1.2.0
 	github.com/IBM/go-sdk-core/v5 v5.10.2
 	github.com/IBM/ibm-cos-sdk-go v1.9.1
 	github.com/IBM/platform-services-go-sdk v0.28.2
+	github.com/davecgh/go-spew v1.1.1
 	github.com/fsnotify/fsnotify v1.5.4
 	github.com/go-openapi/strfmt v0.21.3
 	github.com/golang-jwt/jwt v3.2.2+incompatible
@@ -33,7 +34,6 @@ require (
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-openapi/analysis v0.21.2 // indirect
 	github.com/go-openapi/errors v0.20.2 // indirect
